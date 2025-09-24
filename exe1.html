@@ -1,149 +1,97 @@
 <html>
-    <head>
-        <title>exe1</title>
-    </head>
-    <body>
-        <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<head>
+    <title>exe1</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+</head>
+<body>
+    <a-scene shadow="type: pcfsoft">
+        <a-light type="directional"
+            position="5 5 5"
+            intensity="1"
+            light="castShadow: true"
+            shadow-camera-left="-15"
+            shadow-camera-right="15"
+            shadow-camera-top="15"
+            shadow-camera-bottom="-15"
+            shadow-map-width="2048"
+            shadow-map-height="2048"
+            shadow-bias="-0.0001">
+        </a-light>
 
-        <a-scene shadow="type: pcfsoft">
-            <a-light type="directional"
-                position="5 5 5"
-                intensity="1"
-                light="castShadow: true"
-                shadow-camera-left="-15"
-                shadow-camera-right="15"
-                shadow-camera-top="15"
-                shadow-camera-bottom="-15"
-                shadow-map-width="2048"
-                shadow-map-height="2048"
-                shadow-bias="-0.0001">
-            </a-light>
-            <a-box position="-5 2 -3" rotation="0 45 0" color="#4CC3D9"
-                   shadow="cast: true; receive: true"></a-box>
-            <a-sphere position="0 2 -5" radius="1.25" color="#EF2D5E"
-                      shadow="cast: true; receive: true"></a-sphere>
-            <a-cylinder position="4 2 7" radius="0.5" height="1.5" color="#FFC65D"
-                        shadow="cast: true; receive: true"></a-cylinder>
-            <a-plane rotation="-90 0 0" width="20" height="20" color="#7BC8A4"
-                     shadow="receive: true"></a-plane>
-            <a-entity id="playerRig" position="0 1 0">
-                <a-entity id="cameraRig" position="0 1.6 0">
-                <a-camera wasd-controls look-controls id="camera"></a-camera>
-                </a-entity>
-                <a-entity oculus-touch-controls="hand: left"></a-entity>
-                <a-entity oculus-touch-controls="hand: right"></a-entity>
+        <a-box position="-5 2 -3" rotation="0 45 0" color="#4CC3D9"
+               shadow="cast: true; receive: true"></a-box>
+        <a-sphere position="0 2 -5" radius="1.25" color="#EF2D5E"
+                  shadow="cast: true; receive: true"></a-sphere>
+        <a-cylinder position="4 2 7" radius="0.5" height="1.5" color="#FFC65D"
+                    shadow="cast: true; receive: true"></a-cylinder>
+        <a-plane rotation="-90 0 0" width="20" height="20" color="#7BC8A4"
+                 shadow="receive: true"></a-plane>
+
+        <a-entity id="playerRig" position="0 0 0">
+            <a-entity id="cameraRig" position="0 1.6 0">
+                <a-camera id="camera"></a-camera>
             </a-entity>
-        </a-scene>
+            <a-entity oculus-touch-controls="hand: left"></a-entity>
+            <a-entity oculus-touch-controls="hand: right"></a-entity>
+        </a-entity>
+    </a-scene>
+
     <script>
     AFRAME.registerComponent('rig-controls', {
-    schema: {speed: {default: 0.05}, rotSpeed: {default: 2}},
-    init: function(){
-        this.rig = document.getElementById('playerRig');
-        this.camera = document.getElementById('camera');
-    },
-    tick: function(){
-        const gamepads = navigator.getGamepads();
-        if(!gamepads) return;
+        schema: {speed: {default: 0.05}, rotSpeed: {default: 2}},
+        init: function(){
+            const sceneEl = this.el.sceneEl;
+            sceneEl.addEventListener('loaded', () => {
+                this.rig = document.getElementById('playerRig');
+                this.camera = document.getElementById('camera');
+            });
+        },
+        tick: function(){
+            if(!this.rig || !this.camera) return;
 
-        let leftX=0, leftY=0, rightX=0;
-        // boucle sur les manettes
-        for(let gp of gamepads){
-        if(!gp) continue;
-        if(gp.id.includes('Oculus Touch')){
-            // gauche
-            leftX = gp.axes[2] || 0;
-            leftY = gp.axes[3] || 0;
-            // droite
-            rightX = gp.axes[0] || 0;
+            const gamepads = navigator.getGamepads();
+            if(!gamepads) return;
+
+            let leftX=0, leftY=0, rightX=0;
+            for(let gp of gamepads){
+                if(!gp) continue;
+                if(gp.id.includes('Oculus Touch')){
+                    leftX = gp.axes[2] || 0;
+                    leftY = gp.axes[3] || 0;
+                    rightX = gp.axes[0] || 0;
+                }
+            }
+
+            // direction caméra
+            const camObj = this.camera.object3D;
+            const forward = new THREE.Vector3();
+            camObj.getWorldDirection(forward);
+            forward.y = 0;
+            forward.normalize();
+
+            const right = new THREE.Vector3();
+            right.crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
+
+            const pos = this.rig.getAttribute('position');
+            const rot = this.rig.getAttribute('rotation');
+
+            // déplacement
+            this.rig.setAttribute('position', {
+                x: pos.x + forward.x * leftY * this.data.speed + right.x * leftX * this.data.speed,
+                y: pos.y,
+                z: pos.z + forward.z * leftY * this.data.speed + right.z * leftX * this.data.speed
+            });
+
+            // rotation
+            this.rig.setAttribute('rotation', {
+                x: rot.x,
+                y: rot.y - rightX * this.data.rotSpeed,
+                z: rot.z
+            });
         }
-        }
-
-        // direction caméra
-        const camObj = this.camera.object3D;
-        const forward = new THREE.Vector3();
-        camObj.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
-
-        const right = new THREE.Vector3();
-        right.crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
-
-        const pos = this.rig.getAttribute('position');
-        const rot = this.rig.getAttribute('rotation');
-
-        // déplacement
-        this.rig.setAttribute('position', {
-        x: pos.x + forward.x * leftY * this.data.speed + right.x * leftX * this.data.speed,
-        y: pos.y,
-        z: pos.z + forward.z * leftY * this.data.speed + right.z * leftX * this.data.speed
-        });
-
-        // rotation du rig sur Y
-        this.rig.setAttribute('rotation', {
-        x: rot.x,
-        y: rot.y - rightX * this.data.rotSpeed,
-        z: rot.z
-        });
-    }
     });
 
     document.getElementById('playerRig').setAttribute('rig-controls','');
     </script>
-    </body>
-    <script>
-    AFRAME.registerComponent('rig-controls', {
-    schema: {speed: {default: 0.05}, rotSpeed: {default: 2}},
-    init: function(){
-        this.rig = document.getElementById('playerRig');
-        this.camera = document.getElementById('camera');
-    },
-    tick: function(){
-        const gamepads = navigator.getGamepads();
-        if(!gamepads) return;
-
-        let leftX=0, leftY=0, rightX=0;
-        // boucle sur les manettes
-        for(let gp of gamepads){
-        if(!gp) continue;
-        if(gp.id.includes('Oculus Touch')){
-            // gauche
-            leftX = gp.axes[2] || 0;
-            leftY = gp.axes[3] || 0;
-            // droite
-            rightX = gp.axes[0] || 0;
-        }
-        }
-
-        // direction caméra
-        const camObj = this.camera.object3D;
-        const forward = new THREE.Vector3();
-        camObj.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
-
-        const right = new THREE.Vector3();
-        right.crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
-
-        const pos = this.rig.getAttribute('position');
-        const rot = this.rig.getAttribute('rotation');
-
-        // déplacement
-        this.rig.setAttribute('position', {
-        x: pos.x + forward.x * leftY * this.data.speed + right.x * leftX * this.data.speed,
-        y: pos.y,
-        z: pos.z + forward.z * leftY * this.data.speed + right.z * leftX * this.data.speed
-        });
-
-        // rotation du rig sur Y
-        this.rig.setAttribute('rotation', {
-        x: rot.x,
-        y: rot.y - rightX * this.data.rotSpeed,
-        z: rot.z
-        });
-    }
-    });
-
-    document.getElementById('playerRig').setAttribute('rig-controls','');
-    </script>
-
-</html> 
+</body>
+</html>

@@ -34,6 +34,61 @@
                 <a-entity oculus-touch-controls="hand: right"></a-entity>
             </a-entity>
         </a-scene>
+    <script>
+    AFRAME.registerComponent('rig-controls', {
+    schema: {speed: {default: 0.05}, rotSpeed: {default: 2}},
+    init: function(){
+        this.rig = document.getElementById('playerRig');
+        this.camera = document.getElementById('camera');
+    },
+    tick: function(){
+        const gamepads = navigator.getGamepads();
+        if(!gamepads) return;
+
+        let leftX=0, leftY=0, rightX=0;
+        // boucle sur les manettes
+        for(let gp of gamepads){
+        if(!gp) continue;
+        if(gp.id.includes('Oculus Touch')){
+            // gauche
+            leftX = gp.axes[2] || 0;
+            leftY = gp.axes[3] || 0;
+            // droite
+            rightX = gp.axes[0] || 0;
+        }
+        }
+
+        // direction caméra
+        const camObj = this.camera.object3D;
+        const forward = new THREE.Vector3();
+        camObj.getWorldDirection(forward);
+        forward.y = 0;
+        forward.normalize();
+
+        const right = new THREE.Vector3();
+        right.crossVectors(new THREE.Vector3(0,1,0), forward).normalize();
+
+        const pos = this.rig.getAttribute('position');
+        const rot = this.rig.getAttribute('rotation');
+
+        // déplacement
+        this.rig.setAttribute('position', {
+        x: pos.x + forward.x * leftY * this.data.speed + right.x * leftX * this.data.speed,
+        y: pos.y,
+        z: pos.z + forward.z * leftY * this.data.speed + right.z * leftX * this.data.speed
+        });
+
+        // rotation du rig sur Y
+        this.rig.setAttribute('rotation', {
+        x: rot.x,
+        y: rot.y - rightX * this.data.rotSpeed,
+        z: rot.z
+        });
+    }
+    });
+
+    document.getElementById('playerRig').setAttribute('rig-controls','');
+    </script>
     </body>
     <script>
     AFRAME.registerComponent('rig-controls', {

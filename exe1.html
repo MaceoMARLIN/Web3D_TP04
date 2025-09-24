@@ -29,8 +29,50 @@
             <a-entity id="rig" position="0 1.6 0">
                 <a-camera wasd-controls look-controls></a-camera>
             </a-entity>
-            <a-entity oculus-touch-controls="hand: left"></a-entity>
-            <a-entity oculus-touch-controls="hand: right"></a-entity>
+            <a-entity oculus-touch-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc""></a-entity>
+            <a-entity oculus-touch-controls="hand: right;  handModelStyle: lowPoly; color: #ffcccc"></a-entity>
         </a-scene>
     </body>
+    <script>
+        const rig = document.getElementById('rig');
+
+        window.addEventListener('axismove', function (evt) {
+        // evt.detail.axis = [x, y] pour chaque joystick
+            const gamepad = evt.detail.axis; // tableau flottant [-1, 1]
+            const hand = evt.detail.hand;    // "left" ou "right"
+
+            const speed = 0.05; // vitesse de déplacement
+            const rotSpeed = 1.5; // vitesse de rotation
+
+            if (hand === 'left') {
+                // joystick gauche : déplacement (forward/back + strafe)
+                const forward = -gamepad[1]; // axe Y
+                const strafe = gamepad[0];   // axe X
+
+                // direction globale selon rotation du rig
+                const angle = rig.getAttribute('rotation').y * Math.PI / 180;
+                const dx = Math.sin(angle) * forward + Math.cos(angle) * strafe;
+                const dz = Math.cos(angle) * forward - Math.sin(angle) * strafe;
+
+                const pos = rig.getAttribute('position');
+                rig.setAttribute('position', {
+                    x: pos.x + dx * speed,
+                    y: pos.y,
+                    z: pos.z + dz * speed
+                });
+            }
+
+            if (hand === 'right') {
+                // joystick droit : rotation Y du rig
+                const yaw = -gamepad[0]; // axe X du joystick droit
+                const rot = rig.getAttribute('rotation');
+                rig.setAttribute('rotation', {
+                    x: rot.x,
+                    y: rot.y + yaw * rotSpeed,
+                    z: rot.z
+                });
+            }
+        });
+    </script>
+
 </html> 
